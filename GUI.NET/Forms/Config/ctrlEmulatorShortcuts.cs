@@ -57,6 +57,10 @@ namespace Mesen.GUI.Forms.Config
 
 				EmulatorShortcut.InputBarcode,
 
+				EmulatorShortcut.ToggleRecordVideo,
+				EmulatorShortcut.ToggleRecordAudio,
+				EmulatorShortcut.ToggleRecordMovie,
+
 				EmulatorShortcut.TakeScreenshot,
 				EmulatorShortcut.LoadRandomGame,
 				EmulatorShortcut.RunSingleFrame,
@@ -79,8 +83,11 @@ namespace Mesen.GUI.Forms.Config
 				EmulatorShortcut.ToggleBackground,
 				EmulatorShortcut.ToggleSprites,
 				EmulatorShortcut.ToggleCheats,
-				EmulatorShortcut.ToggleAudio,
 				EmulatorShortcut.ToggleKeyboardMode,
+				
+				EmulatorShortcut.ToggleAudio,
+				EmulatorShortcut.IncreaseVolume,
+				EmulatorShortcut.DecreaseVolume,
 
 				EmulatorShortcut.MaxSpeed,
 				EmulatorShortcut.IncreaseSpeed,
@@ -219,7 +226,7 @@ namespace Mesen.GUI.Forms.Config
 						CheckConflicts();
 					} else if(e.Button == MouseButtons.Left) {
 						using(frmGetKey frm = new frmGetKey(false)) {
-							frm.ShowDialog();
+							((Form)frm).ShowDialog(this);
 							button.Value = frm.ShortcutKey.ToString();
 							button.Tag = frm.ShortcutKey;
 

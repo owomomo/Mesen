@@ -585,6 +585,7 @@ void Debugger::UpdateCallstack(uint8_t instruction, uint32_t addr)
 						for(int j = (int)_callstack.size() - i - 1; j >= 0; j--) {
 							_callstack.pop_back();
 							_subReturnAddresses.pop_back();
+							_profiler->UnstackFunction();
 						}
 						break;
 					}
@@ -604,7 +605,9 @@ void Debugger::UpdateCallstack(uint8_t instruction, uint32_t addr)
 		AddCallstackFrame(addr, targetAddr, StackFrameFlags::None);
 		_subReturnAddresses.push_back(addr + 3);
 		
-		_profiler->StackFunction(_mapper->ToAbsoluteAddress(addr), _mapper->ToAbsoluteAddress(targetAddr));
+		AddressTypeInfo dest;
+		_mapper->GetAbsoluteAddressAndType(targetAddr, &dest);
+		_profiler->StackFunction(dest, StackFrameFlags::None);
 	}
 }
 
@@ -633,7 +636,9 @@ void Debugger::ProcessInterrupt(uint16_t cpuAddr, uint16_t destCpuAddr, bool for
 	AddCallstackFrame(cpuAddr, destCpuAddr, forNmi ? StackFrameFlags::Nmi : StackFrameFlags::Irq);
 	_subReturnAddresses.push_back(cpuAddr);
 
-	_profiler->StackFunction(-1, _mapper->ToAbsoluteAddress(destCpuAddr));
+	AddressTypeInfo addressInfo;
+	_mapper->GetAbsoluteAddressAndType(destCpuAddr, &addressInfo);
+	_profiler->StackFunction(addressInfo, forNmi ? StackFrameFlags::Nmi : StackFrameFlags::Irq);
 
 	ProcessEvent(forNmi ? EventType::Nmi : EventType::Irq);
 }
@@ -762,26 +767,7 @@ bool Debugger::ProcessRamOperation(MemoryOperationType type, uint16_t &addr, uin
 	AddressTypeInfo addressInfo;
 	GetAbsoluteAddressAndType(addr, &addressInfo);
 	int32_t absoluteAddr = addressInfo.Type == AddressType::PrgRom ? addressInfo.Address : -1;
-	int32_t absoluteRamAddr = addressInfo.Type == AddressType::WorkRam ? addressInfo.Address : -1;
-
-	if(addressInfo.Address >= 0 && type != MemoryOperationType::DummyRead && type != MemoryOperationType::DummyWrite && _runToCycle == -1) {
-		//Ignore dummy read/writes and do not change counters while using the step back feature
-		if(type == MemoryOperationType::Write && CheckFlag(DebuggerFlags::IgnoreRedundantWrites)) {
-			if(_memoryManager->DebugRead(addr) != value) {
-				_memoryAccessCounter->ProcessMemoryAccess(addressInfo, type, _cpu->GetCycleCount());
-			}
-		} else {
-			if(_memoryAccessCounter->ProcessMemoryAccess(addressInfo, type, _cpu->GetCycleCount())) {
-				if(!_breakOnFirstCycle && _enableBreakOnUninitRead && CheckFlag(DebuggerFlags::BreakOnUninitMemoryRead)) {
-					//Break on uninit memory read
-					Step(1);
-					breakDone = SleepUntilResume(BreakSource::BreakOnUninitMemoryRead, 0, BreakpointType::Global, operationInfo.Address, (uint8_t)operationInfo.Value, operationInfo.OperationType);
-				}
-			}
-		}
-	}
-
-	if(absoluteAddr >= 0) {
+	if(addressInfo.Type == AddressType::PrgRom && addressInfo.Address >= 0 && type != MemoryOperationType::DummyRead && type != MemoryOperationType::DummyWrite && _runToCycle == -1) {
 		if(type == MemoryOperationType::ExecOperand) {
 			_codeDataLogger->SetFlag(absoluteAddr, CdlPrgFlags::Code);
 		} else if(type == MemoryOperationType::Read) {
@@ -790,10 +776,6 @@ bool Debugger::ProcessRamOperation(MemoryOperationType type, uint16_t &addr, uin
 				_codeDataLogger->SetFlag(absoluteAddr, CdlPrgFlags::PcmData);
 			}
 		}
-	} else if(addr < 0x2000 || absoluteRamAddr >= 0) {
-		if(type == MemoryOperationType::Write) {
-			_disassembler->InvalidateCache(addressInfo);
-		}
 	}
 
 	if(type == MemoryOperationType::ExecOpCode) {
@@ -801,33 +783,35 @@ bool Debugger::ProcessRamOperation(MemoryOperationType type, uint16_t &addr, uin
 		_prevInstructionCycle = _curInstructionCycle;
 		_curInstructionCycle = (int64_t)_cpu->GetCycleCount();
 
-		_disassembler->BuildCache(addressInfo, addr, false, true);
-		
 		if(absoluteAddr >= 0) {
 			_codeDataLogger->SetFlag(absoluteAddr, CdlPrgFlags::Code);
 		}
 
-		if(_disassembler->IsJump(value)) {
-			uint16_t targetPc = _disassembler->GetDisassemblyInfo(addressInfo).GetJumpDestination(_cpu->GetPC(), _memoryManager.get());
-			AddressTypeInfo addressInfo;
-			GetAbsoluteAddressAndType(targetPc, &addressInfo);
-			if(addressInfo.Address >= 0 && addressInfo.Type == AddressType::PrgRom) {
-				if(value == 0x20) {
-					//JSR, mark target as a sub entry point
-					_disassembler->BuildCache(addressInfo, targetPc, true, false);
-					_functionEntryPoints.emplace(addressInfo.Address);
-					_codeDataLogger->SetFlag(addressInfo.Address, CdlPrgFlags::SubEntryPoint);
-				} else {
-					//Only mark as jump target if not marked as sub entry point
-					_codeDataLogger->SetFlag(addressInfo.Address, CdlPrgFlags::JumpTarget);
+		if(addressInfo.Address >= 0) {
+			_disassembler->BuildCache(addressInfo, addr, false, true);
+
+			if(_disassembler->IsJump(value)) {
+				uint16_t targetPc = _disassembler->GetDisassemblyInfo(addressInfo).GetJumpDestination(_cpu->GetPC(), _memoryManager.get());
+
+				AddressTypeInfo targetAddr;
+				GetAbsoluteAddressAndType(targetPc, &targetAddr);
+				if(targetAddr.Address >= 0 && targetAddr.Type == AddressType::PrgRom) {
+					if(value == 0x20) {
+						//JSR, mark target as a sub entry point
+						_disassembler->BuildCache(targetAddr, targetPc, true, false);
+						_functionEntryPoints.emplace(targetAddr.Address);
+						_codeDataLogger->SetFlag(targetAddr.Address, CdlPrgFlags::SubEntryPoint);
+					} else {
+						//Only mark as jump target if not marked as sub entry point
+						_codeDataLogger->SetFlag(targetAddr.Address, CdlPrgFlags::JumpTarget);
+					}
 				}
 			}
+
+			_performanceTracker->ProcessCpuExec(addressInfo);
 		}
 
 		ProcessStepConditions(addr);
-
-		_performanceTracker->ProcessCpuExec(addressInfo);
-		_profiler->ProcessInstructionStart(absoluteAddr);
 
 		BreakSource breakSource = BreakSource::Unspecified;
 		if(value == 0 && CheckFlag(DebuggerFlags::BreakOnBrk)) {
@@ -864,13 +848,16 @@ bool Debugger::ProcessRamOperation(MemoryOperationType type, uint16_t &addr, uin
 		if(_codeRunner && _codeRunner->IsRunning() && addr >= 0x3000 && addr < 0x4000) {
 			disassemblyInfo = _codeRunner->GetDisassemblyInfo(addr);
 		} else {
-			disassemblyInfo = _disassembler->GetDisassemblyInfo(addressInfo);
+			if(addressInfo.Address >= 0) {
+				disassemblyInfo = _disassembler->GetDisassemblyInfo(addressInfo);
+			} else {
+				disassemblyInfo.Initialize(addr, _memoryManager.get(), false);
+			}
 		}
 		_traceLogger->Log(_debugState, disassemblyInfo, operationInfo);
 	} else {
 		_opCodeCycle++;
 		_traceLogger->LogNonExec(operationInfo);
-		_profiler->ProcessCycle();
 	}
 
 	if(!breakDone && _stepCycleCount > 0) {
@@ -910,6 +897,12 @@ bool Debugger::ProcessRamOperation(MemoryOperationType type, uint16_t &addr, uin
 	_currentReadValue = nullptr;
 
 	if(type == MemoryOperationType::Write) {
+		if(_runToCycle == -1 && !CheckFlag(DebuggerFlags::IgnoreRedundantWrites) || _memoryManager->DebugRead(addr) != value) {
+			_memoryAccessCounter->ProcessMemoryWrite(addressInfo, _cpu->GetCycleCount());
+		}
+
+		_disassembler->InvalidateCache(addressInfo);
+
 		if(addr >= 0x2000 && addr <= 0x3FFF) {
 			if((addr & 0x07) == 5 || (addr & 0x07) == 6) {
 				GetState(&_debugState, false);
@@ -919,6 +912,10 @@ bool Debugger::ProcessRamOperation(MemoryOperationType type, uint16_t &addr, uin
 			}
 		} else if(addr >= 0x4018 && _mapper->IsWriteRegister(addr)) {
 			_eventManager->AddDebugEvent(DebugEventType::MapperRegisterWrite, addr, value);
+		} else if(addr >= 0x4000 && addr <= 0x4015 || addr == 0x4017) {
+			_eventManager->AddDebugEvent(DebugEventType::ApuRegisterWrite, addr, value);
+		} else if(addr == 0x4016) {
+			_eventManager->AddDebugEvent(DebugEventType::ControlRegisterWrite, addr, value);
 		}
 
 		if(_frozenAddresses[addr]) {
@@ -929,9 +926,25 @@ bool Debugger::ProcessRamOperation(MemoryOperationType type, uint16_t &addr, uin
 			_eventManager->AddDebugEvent(DebugEventType::PpuRegisterRead, addr, value);
 		} else if(addr >= 0x4018 && _mapper->IsReadRegister(addr)) {
 			_eventManager->AddDebugEvent(DebugEventType::MapperRegisterRead, addr, value);
+		} else if(addr >= 0x4000 && addr <= 0x4015) {
+			_eventManager->AddDebugEvent(DebugEventType::ApuRegisterRead, addr, value);
+		} else if(addr == 0x4016 || addr == 0x4017) {
+			_eventManager->AddDebugEvent(DebugEventType::ControlRegisterRead, addr, value);
 		}
-	} else if(type == MemoryOperationType::ExecOpCode) {
-		if(!_needRewind) {
+
+		//Ignore dummy read/writes and do not change counters while using the step back feature
+		if(_runToCycle == -1 && _memoryAccessCounter->ProcessMemoryRead(addressInfo, _cpu->GetCycleCount())) {
+			if(!breakDone && !_breakOnFirstCycle && _enableBreakOnUninitRead && CheckFlag(DebuggerFlags::BreakOnUninitMemoryRead)) {
+				//Break on uninit memory read
+				Step(1);
+				SleepUntilResume(BreakSource::BreakOnUninitMemoryRead, 0, BreakpointType::Global, operationInfo.Address, (uint8_t)operationInfo.Value, operationInfo.OperationType);
+			}
+		}
+	} else {
+		if(_runToCycle == -1 && (type == MemoryOperationType::ExecOpCode || type == MemoryOperationType::ExecOperand)) {
+			_memoryAccessCounter->ProcessMemoryExec(addressInfo, _cpu->GetCycleCount());
+		}
+		if(!_needRewind && type == MemoryOperationType::ExecOpCode) {
 			UpdateCallstack(_lastInstruction, addr);
 		}
 	}
@@ -1010,7 +1023,7 @@ void Debugger::ProcessVramReadOperation(MemoryOperationType type, uint16_t addr,
 		OperationInfo operationInfo{ addr, value, type };
 		ProcessBreakpoints(BreakpointType::ReadVram, operationInfo, !_breakOnFirstCycle, true);
 	}
-	_memoryAccessCounter->ProcessPpuMemoryAccess(addressInfo, type, _cpu->GetCycleCount());
+	_memoryAccessCounter->ProcessPpuMemoryRead(addressInfo, _cpu->GetCycleCount());
 	ProcessPpuOperation(addr, value, MemoryOperationType::Read);
 }
 
@@ -1023,7 +1036,7 @@ void Debugger::ProcessVramWriteOperation(uint16_t addr, uint8_t &value)
 		OperationInfo operationInfo{ addr, value, MemoryOperationType::Write };
 		ProcessBreakpoints(BreakpointType::WriteVram, operationInfo, !_breakOnFirstCycle, true);
 	}
-	_memoryAccessCounter->ProcessPpuMemoryAccess(addressInfo, MemoryOperationType::Write, _cpu->GetCycleCount());
+	_memoryAccessCounter->ProcessPpuMemoryWrite(addressInfo, _cpu->GetCycleCount());
 	ProcessPpuOperation(addr, value, MemoryOperationType::Write);
 }
 

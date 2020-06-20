@@ -353,6 +353,7 @@
 			<Control ID="chkRandomizeCpuPpuAlignment">随机 CPU/PPU 开机对齐</Control>
 			<Control ID="chkEnablePpu2006ScrollGlitch">模拟 PPU $2006 卷轴故障</Control>
 			<Control ID="chkEnablePpu2000ScrollGlitch">模拟首次写入 PPU $2000/$2005/$2006 卷轴故障</Control>
+			<Control ID="chkEnablePpuOamRowCorruption">Enable PPU OAM row corruption emulation</Control>
 
 			<Control ID="lblRamPowerOnState">默认开机 RAM 状态:</Control>
 			<Control ID="tpgOverclocking">超频</Control>
@@ -573,7 +574,7 @@
 		</Form>
 		<Form ID="frmAbout" Title="关于 Mesen">
 			<Control ID="labelProductName">Mesen</Control>
-			<Control ID="labelCopyright">© 2019 M. Bibaud (又名 Sour)</Control>
+			<Control ID="labelCopyright">© 2020 M. Bibaud (又名 Sour)</Control>
 			<Control ID="lblWebsite">网站:</Control>
 			<Control ID="lblLink">www.mesen.ca</Control>
 			<Control ID="labelVersion">版本:</Control>
@@ -797,6 +798,7 @@
 		<Message ID="FilterMovie">影片文件 (*.mmo)|*.mmo|所有文件 (*.*)|*.*</Message>
 		<Message ID="FilterWave">波形文件 (*.wav)|*.wav|所有文件 (*.*)|*.*</Message>
 		<Message ID="FilterAvi">AVI 视频 (*.avi)|*.avi|所有文件 (*.*)|*.*</Message>
+		<Message ID="FilterGif">GIF files (*.gif)|*.gif|All Files (*.*)|*.*</Message>
 		<Message ID="FilterPalette">调色板 (*.pal)|*.pal|所有文件 (*.*)|*.*</Message>
 		<Message ID="FilterRom">所有支持的格式 (*.nes, *.zip, *.7z, *.nsf, *.nsfe, *.fds, *.unf, *.unif, *.studybox)|*.NES;*.ZIP;*.7z;*.FDS;*.NSF;*.NSFE;*.UNF;*.UNIF;*.STUDYBOX|NES ROM (*.nes, *.unf, *.unif)|*.NES;*.UNF;*.UNIF|Famicom 磁盘 (*.fds)|*.FDS|NSF 音乐 (*.nsf, *.nsfe)|*.nsf;*.nsfe|ZIP 档案 (*.zip)|*.ZIP|7-Zip 档案 (*.7z)|*.7z|所有文件 (*.*)|*.*</Message>
 		<Message ID="FilterRomIps">所有支持的格式 (*.nes, *.zip, *.7z, *.fds, *.nsf, *.nsfe, *.unf, *.unif, *.studybox, *.ips, *.bps, *.ups)|*.NES;*.ZIP;*.7z;*.IPS;*.BPS;*.UPS;*.FDS;*.NSF;*.NSFE;*.UNF;*.UNIF;*.STUDYBOX|NES ROM (*.nes, *.unf, *.unif)|*.NES;*.UNF;*.UNIF|Famicom 磁盘 (*.fds)|*.FDS|NSF 音乐 (*.nsf, *.nsfe)|*.nsf;*.nsfe|ZIP 档案 (*.zip)|*.ZIP|7-Zip 档案 (*.7z)|*.7z|IPS/UPS/BPS 补丁 (*.ips, *.bps, *.ups)|*.IPS;*.BPS;*.UPS|所有文件 (*.*)|*.*</Message>
@@ -939,6 +941,8 @@
 		<Message ID="EmulatorShortcutMappings_LoadState">载入进度</Message>
 		<Message ID="EmulatorShortcutMappings_ToggleCheats">启用/禁用作弊码</Message>
 		<Message ID="EmulatorShortcutMappings_ToggleAudio">静音</Message>
+		<Message ID="EmulatorShortcutMappings_IncreaseVolume">Increase Volume</Message>
+		<Message ID="EmulatorShortcutMappings_DecreaseVolume">Decrease Volume</Message>
 		<Message ID="EmulatorShortcutMappings_RunSingleFrame">帧进</Message>
 
 		<Message ID="EmulatorShortcutMappings_EjectDisk">弹出磁盘</Message>
@@ -959,8 +963,12 @@
 		<Message ID="EmulatorShortcutMappings_ToggleBackground">显示背景</Message>
 		<Message ID="EmulatorShortcutMappings_ToggleSprites">显示精灵</Message>
 		<Message ID="EmulatorShortcutMappings_ToggleKeyboardMode">切换键盘模式</Message>
-		<Message ID="EmulatorShortcutMappings_MaxSpeed">最快速</Message>
 
+		<Message ID="EmulatorShortcutMappings_ToggleRecordVideo">Start/Stop Recording Video</Message>
+		<Message ID="EmulatorShortcutMappings_ToggleRecordAudio">Start/Stop Recording Audio</Message>
+		<Message ID="EmulatorShortcutMappings_ToggleRecordMovie">Start/Stop Recording Movie</Message>
+		
+		<Message ID="EmulatorShortcutMappings_MaxSpeed">最快速</Message>
 		<Message ID="EmulatorShortcutMappings_LoadRandomGame">随机载入游戏</Message>
 		<Message ID="EmulatorShortcutMappings_SaveStateSlot1">保存进度 1</Message>
 		<Message ID="EmulatorShortcutMappings_SaveStateSlot2">保存进度 2</Message>
@@ -1020,6 +1028,7 @@
 			<Value ID="PowerPad">Power Pad</Value>
 			<Value ID="SnesMouse">SFC 鼠标</Value>
 			<Value ID="SuborMouse">小霸王鼠标</Value>
+			<Value ID="VbController">Virtual Boy 控制器</Value>
 		</Enum>
 		<Enum ID="ExpansionPortDevice">
 			<Value ID="None">无</Value>

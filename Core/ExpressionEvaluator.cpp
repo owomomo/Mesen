@@ -77,6 +77,18 @@ bool ExpressionEvaluator::CheckSpecialTokens(string expression, size_t &pos, str
 		output += std::to_string((int64_t)EvalValues::RegY);
 	} else if(token == "ps") {
 		output += std::to_string((int64_t)EvalValues::RegPS);
+	} else if(token == "pscarry") {
+		output += std::to_string((int64_t)EvalValues::RegPS_Carry);
+	} else if(token == "pszero") {
+		output += std::to_string((int64_t)EvalValues::RegPS_Zero);
+	} else if(token == "psinterrupt") {
+		output += std::to_string((int64_t)EvalValues::RegPS_Interrupt);
+	} else if(token == "psdecimal") {
+		output += std::to_string((int64_t)EvalValues::RegPS_Decimal);
+	} else if(token == "psoverflow") {
+		output += std::to_string((int64_t)EvalValues::RegPS_Overflow);
+	} else if(token == "psnegative") {
+		output += std::to_string((int64_t)EvalValues::RegPS_Negative);
 	} else if(token == "sp") {
 		output += std::to_string((int64_t)EvalValues::RegSP);
 	} else if(token == "pc") {
@@ -131,7 +143,7 @@ bool ExpressionEvaluator::CheckSpecialTokens(string expression, size_t &pos, str
 	return true;
 }
 
-string ExpressionEvaluator::GetNextToken(string expression, size_t &pos, ExpressionData &data, bool &success)
+string ExpressionEvaluator::GetNextToken(string expression, size_t& pos, ExpressionData& data, bool& success, bool previousTokenIsOp)
 {
 	string output;
 	success = true;
@@ -153,12 +165,12 @@ string ExpressionEvaluator::GetNextToken(string expression, size_t &pos, Express
 			success = false;
 		}
 		output = std::to_string((uint32_t)HexUtilities::FromHex(output));
-	} else if(c == '%') {
+	} else if(c == '%' && previousTokenIsOp) {
 		//Binary numbers
 		pos++;
 		for(size_t len = expression.size(); pos < len; pos++) {
 			c = std::tolower(expression[pos]);
-			if(c == '0' || c <= '1') {
+			if(c == '0' || c == '1') {
 				output += c;
 			} else {
 				break;
@@ -245,7 +257,7 @@ bool ExpressionEvaluator::ToRpn(string expression, ExpressionData &data)
 	bool operatorOrEndTokenExpected = false;
 	while(true) {
 		bool success = true;
-		string token = GetNextToken(expression, position, data, success);
+		string token = GetNextToken(expression, position, data, success, previousTokenIsOp);
 		if(!success) {
 			return false;
 		}
@@ -292,7 +304,7 @@ bool ExpressionEvaluator::ToRpn(string expression, ExpressionData &data)
 			if(!ProcessSpecialOperator(EvalOperators::Parenthesis, opStack, precedenceStack, data.RpnQueue)) {
 				return false;
 			}
-			operatorExpected = true;
+			operatorOrEndTokenExpected = true;
 		} else if(token[0] == '[') {
 			bracketCount++;
 			opStack.push(EvalOperators::Bracket);
@@ -302,7 +314,7 @@ bool ExpressionEvaluator::ToRpn(string expression, ExpressionData &data)
 			if(!ProcessSpecialOperator(EvalOperators::Bracket, opStack, precedenceStack, data.RpnQueue)) {
 				return false;
 			}
-			operatorExpected = true;
+			operatorOrEndTokenExpected = true;
 		} else if(token[0] == '{') {
 			braceCount++;
 			opStack.push(EvalOperators::Braces);
@@ -312,7 +324,7 @@ bool ExpressionEvaluator::ToRpn(string expression, ExpressionData &data)
 			if(!ProcessSpecialOperator(EvalOperators::Braces, opStack, precedenceStack, data.RpnQueue)){
 				return false;
 			}
-			operatorExpected = true;
+			operatorOrEndTokenExpected = true;
 		} else {
 			if(token[0] < '0' || token[0] > '9') {
 				return false;
@@ -393,6 +405,12 @@ int32_t ExpressionEvaluator::Evaluate(ExpressionData &data, DebugState &state, E
 					case EvalValues::SpriteOverflow: token = state.PPU.StatusFlags.SpriteOverflow; resultType = EvalResultType::Boolean; break;
 					case EvalValues::VerticalBlank: token = state.PPU.StatusFlags.VerticalBlank; resultType = EvalResultType::Boolean; break;
 					case EvalValues::Branched: token = Disassembler::IsJump(_debugger->GetMemoryDumper()->GetMemoryValue(DebugMemoryType::CpuMemory, state.CPU.PreviousDebugPC, true)); resultType = EvalResultType::Boolean; break;
+					case EvalValues::RegPS_Carry: token = (state.CPU.PS & PSFlags::Carry) != 0; resultType = EvalResultType::Boolean; break;
+					case EvalValues::RegPS_Zero: token = (state.CPU.PS & PSFlags::Zero) != 0; resultType = EvalResultType::Boolean; break;
+					case EvalValues::RegPS_Interrupt: token = (state.CPU.PS & PSFlags::Interrupt) != 0; resultType = EvalResultType::Boolean; break;
+					case EvalValues::RegPS_Decimal: token = (state.CPU.PS & PSFlags::Decimal) != 0; resultType = EvalResultType::Boolean; break;
+					case EvalValues::RegPS_Overflow: token = (state.CPU.PS & PSFlags::Overflow) != 0; resultType = EvalResultType::Boolean; break;
+					case EvalValues::RegPS_Negative: token = (state.CPU.PS & PSFlags::Negative) != 0; resultType = EvalResultType::Boolean; break;
 				}
 			}
 		} else if(token >= EvalOperators::Multiplication) {
@@ -599,11 +617,22 @@ void ExpressionEvaluator::RunTests()
 	test("%1011", EvalResultType::Numeric, 11);
 	test("%12", EvalResultType::Invalid, 0);
 
+	test("10 % 5", EvalResultType::Numeric, 0);
+	test("%100 % 5", EvalResultType::Numeric, 4);
+	test("%100%5", EvalResultType::Numeric, 4);
+	test("%10(10)", EvalResultType::Invalid, 0);
+	test("10%4*10", EvalResultType::Numeric, 20);
+	test("(5+5)%3", EvalResultType::Numeric, 1);
+	test("11%%10", EvalResultType::Numeric, 1); //11 modulo of 2 in binary (%10)
+
 	test(":$00", EvalResultType::Numeric, 0);
 	test(":50", EvalResultType::Numeric, 50);
 	test(":$50", EvalResultType::Numeric, 0x50);
 	test(":($1FFF+1)", EvalResultType::Numeric, -1);
-	test(":$1FFF+1", EvalResultType::Numeric, 0x2000);
+	test(":$1FFF+1", EvalResultType::Numeric, 0x800);
 	test("1+:$100", EvalResultType::Numeric, 0x101);
+
+	test("[$4100+[$4100]]", EvalResultType::Numeric, 0x41);
+	test("-($10+[$4100])", EvalResultType::Numeric, -0x51);
 }
 #endif

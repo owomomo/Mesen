@@ -79,7 +79,7 @@ extern "C"
 	DllExport uint32_t __stdcall DebugGetMemoryState(DebugMemoryType type, uint8_t *buffer) { return GetDebugger()->GetMemoryDumper()->GetMemoryState(type, buffer); }
 	DllExport void __stdcall DebugGetNametable(uint32_t nametableIndex, NametableDisplayMode mode, uint32_t *frameBuffer, uint8_t *tileData, uint8_t *attributeData) { GetDebugger()->GetMemoryDumper()->GetNametable(nametableIndex, mode, frameBuffer, tileData, attributeData); }
 	DllExport void __stdcall DebugGetChrBank(uint32_t bankIndex, uint32_t *frameBuffer, uint8_t palette, bool largeSprites, CdlHighlightType highlightType, bool useAutoPalette, bool showSingleColorTilesInGrayscale, uint32_t *paletteBuffer) { GetDebugger()->GetMemoryDumper()->GetChrBank(bankIndex, frameBuffer, palette, largeSprites, highlightType, useAutoPalette, showSingleColorTilesInGrayscale, paletteBuffer); }
-	DllExport void __stdcall DebugGetSprites(uint32_t *frameBuffer) { GetDebugger()->GetMemoryDumper()->GetSprites(frameBuffer); }
+	DllExport void __stdcall DebugGetSprites(uint32_t *frameBuffer, int16_t sourcePage) { GetDebugger()->GetMemoryDumper()->GetSprites(frameBuffer, sourcePage); }
 	DllExport void __stdcall DebugGetPalette(uint32_t *frameBuffer) { GetDebugger()->GetMemoryDumper()->GetPalette(frameBuffer); }
 	
 	DllExport void __stdcall DebugGetCallstack(StackFrameInfo *callstackArray, uint32_t &callstackSize) { GetDebugger()->GetCallstack(callstackArray, callstackSize); }
@@ -114,12 +114,10 @@ extern "C"
 	DllExport void __stdcall DebugSetMemoryValues(DebugMemoryType type, uint32_t address, uint8_t* data, int32_t length) { return GetDebugger()->GetMemoryDumper()->SetMemoryValues(type, address, data, length); }
 	
 	DllExport void __stdcall DebugResetMemoryAccessCounts() { GetDebugger()->GetMemoryAccessCounter()->ResetCounts(); }
-	DllExport void __stdcall DebugGetMemoryAccessStamps(uint32_t offset, uint32_t length, DebugMemoryType memoryType, MemoryOperationType operationType, uint64_t* stamps) { GetDebugger()->GetMemoryAccessCounter()->GetAccessStamps(offset, length, memoryType, operationType, stamps); }
-	DllExport void __stdcall DebugGetMemoryAccessCounts(uint32_t offset, uint32_t length, DebugMemoryType memoryType, MemoryOperationType operationType, int32_t* counts) { GetDebugger()->GetMemoryAccessCounter()->GetAccessCounts(offset, length, memoryType, operationType, counts); }
-	DllExport void __stdcall DebugGetUninitMemoryReads(DebugMemoryType memoryType, int32_t* counts) { GetDebugger()->GetMemoryAccessCounter()->GetUninitMemoryReads(memoryType, counts); }
+	DllExport void __stdcall DebugGetMemoryAccessCounts(uint32_t offset, uint32_t length, DebugMemoryType memoryType, AddressCounters* counts) { GetDebugger()->GetMemoryAccessCounter()->GetAccessCounts(offset, length, memoryType, counts); }
 	DllExport void __stdcall DebugGetNametableChangedData(bool* ntChangedData) { GetDebugger()->GetMemoryAccessCounter()->GetNametableChangedData(ntChangedData); }
 
-	DllExport void __stdcall DebugGetProfilerData(uint64_t* profilerData, ProfilerDataType dataType) { GetDebugger()->GetProfiler()->GetProfilerData(profilerData, dataType); }
+	DllExport void __stdcall DebugGetProfilerData(ProfiledFunction* profilerData, uint32_t &functionCount) { GetDebugger()->GetProfiler()->GetProfilerData(profilerData, functionCount); }
 	DllExport void __stdcall DebugResetProfiler() { GetDebugger()->GetProfiler()->Reset(); }
 
 	DllExport void __stdcall DebugSetFreezeState(uint16_t address, bool frozen) { GetDebugger()->SetFreezeState(address, frozen); }

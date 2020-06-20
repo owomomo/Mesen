@@ -163,6 +163,14 @@ void VideoDecoder::UpdateFrameSync(void *ppuOutputBuffer, HdScreenInfo *hdScreen
 		return;
 	}
 
+	if(_frameChanged) {
+		//Last frame isn't done decoding yet - sometimes Signal() introduces a 25-30ms delay
+		while(_frameChanged) {
+			//Spin until decode is done
+		}
+		//At this point, we are sure that the decode thread is no longer busy
+	}
+
 	_frameNumber = _console->GetFrameCount();
 	_hdScreenInfo = hdScreenInfo;
 	_ppuOutputBuffer = (uint16_t*)ppuOutputBuffer;
@@ -247,6 +255,10 @@ void VideoDecoder::TakeScreenshot()
 
 void VideoDecoder::TakeScreenshot(std::stringstream &stream, bool rawScreenshot)
 {
+	if(!_ppuOutputBuffer) {
+		return;
+	}
+
 	if(rawScreenshot) {
 		//Take screenshot without NTSC filter on
 		DefaultVideoFilter filter(_console);

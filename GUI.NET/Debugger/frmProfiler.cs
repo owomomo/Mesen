@@ -19,9 +19,8 @@ namespace Mesen.GUI.Debugger
 			InitializeComponent();
 
 			if(!DesignMode) {
-				DebugWorkspaceManager.AutoLoadDbgFiles(true);
-
 				ctrlProfiler.RefreshData();
+				ctrlProfiler.RefreshList();
 				tmrRefresh.Start();
 
 				RestoreLocation(ConfigManager.Config.DebugInfo.ProfilerLocation, ConfigManager.Config.DebugInfo.ProfilerSize);
@@ -40,6 +39,7 @@ namespace Mesen.GUI.Debugger
 		private void tmrRefresh_Tick(object sender, EventArgs e)
 		{
 			ctrlProfiler.RefreshData();
+			ctrlProfiler.RefreshList();
 		}
 	}
 }

@@ -24,12 +24,14 @@ private:
 
 	vector<DebugEventInfo> _snapshot;
 	uint16_t _snapshotScanline = 0;
+	uint16_t _snapshotCycle = 0;
 	SimpleLock _lock;
 
 	uint32_t _scanlineCount = 262;
 	uint16_t *_ppuBuffer = nullptr;
 
 	void DrawEvent(DebugEventInfo &evt, bool drawBackground, uint32_t *buffer, EventViewerDisplayOptions &options);
+	void DrawDot(uint32_t x, uint32_t y, uint32_t color, bool drawBackground, uint32_t* buffer);
 	void DrawNtscBorders(uint32_t *buffer);
 	void DrawPixel(uint32_t *buffer, int32_t x, uint32_t y, uint32_t color);
 
@@ -59,12 +61,20 @@ struct EventViewerDisplayOptions
 	uint32_t BreakpointColor;
 	uint32_t MapperRegisterReadColor;
 	uint32_t MapperRegisterWriteColor;
+	uint32_t ApuRegisterReadColor;
+	uint32_t ApuRegisterWriteColor;
+	uint32_t ControlRegisterReadColor;
+	uint32_t ControlRegisterWriteColor;
 
 	uint32_t PpuRegisterReadColors[8];
 	uint32_t PpuRegisterWriteColors[8];
 
 	bool ShowMapperRegisterWrites;
 	bool ShowMapperRegisterReads;
+	bool ShowApuRegisterWrites;
+	bool ShowApuRegisterReads;
+	bool ShowControlRegisterWrites;
+	bool ShowControlRegisterReads;
 
 	bool ShowPpuRegisterWrites[8];
 	bool ShowPpuRegisterReads[8];

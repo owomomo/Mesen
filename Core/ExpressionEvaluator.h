@@ -69,6 +69,13 @@ enum EvalValues : int64_t
 	SpriteOverflow = 20000000119,
 	VerticalBlank = 20000000120,
 	Branched = 20000000121,
+	
+	RegPS_Carry = 20000000122,
+	RegPS_Zero = 20000000123,
+	RegPS_Interrupt = 20000000124,
+	RegPS_Decimal = 20000000125,
+	RegPS_Overflow = 20000000126,
+	RegPS_Negative = 20000000127,
 
 	FirstLabelIndex = 20000002000,
 };
@@ -116,7 +123,7 @@ private:
 	bool IsOperator(string token, int &precedence, bool unaryOperator);
 	EvalOperators GetOperator(string token, bool unaryOperator);
 	bool CheckSpecialTokens(string expression, size_t &pos, string &output, ExpressionData &data);
-	string GetNextToken(string expression, size_t &pos, ExpressionData &data, bool &success);
+	string GetNextToken(string expression, size_t &pos, ExpressionData &data, bool &success, bool previousTokenIsOp);
 	bool ProcessSpecialOperator(EvalOperators evalOp, std::stack<EvalOperators> &opStack, std::stack<int> &precedenceStack, vector<int64_t> &outputQueue);
 	bool ToRpn(string expression, ExpressionData &data);
 	int32_t PrivateEvaluate(string expression, DebugState &state, EvalResultType &resultType, OperationInfo &operationInfo, bool &success);

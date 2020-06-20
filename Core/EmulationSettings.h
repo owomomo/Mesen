@@ -23,6 +23,8 @@ enum EmulationFlags : uint64_t
 
 	PauseOnMovieEnd = 0x0100,
 
+	EnablePpuOamRowCorruption = 0x0200,
+
 	AllowBackgroundInput = 0x0400,
 	ReduceSoundInBackground = 0x0800,
 	MuteSoundInBackground = 0x1000,
@@ -267,7 +269,8 @@ enum class ControllerType
 	PowerPad = 5,
 	SnesMouse = 6,
 	SuborMouse = 7,
-	VsZapper = 8
+	VsZapper = 8,
+	VbController = 9,
 };
 
 extern const vector<string> ExpansionPortDeviceNames;
@@ -326,6 +329,7 @@ struct KeyMapping
 	uint32_t JissenMahjongButtons[21] = {};
 	uint32_t SuborKeyboardButtons[99] = {};
 	uint32_t BandaiMicrophoneButtons[3] = {};
+	uint32_t VirtualBoyButtons[14] = {};
 
 	bool HasKeySet()
 	{
@@ -342,6 +346,7 @@ struct KeyMapping
 		hasKeyBinding |= HasKeyBinding(JissenMahjongButtons, sizeof(JissenMahjongButtons) / sizeof(JissenMahjongButtons[0]));
 		hasKeyBinding |= HasKeyBinding(SuborKeyboardButtons, sizeof(SuborKeyboardButtons) / sizeof(SuborKeyboardButtons[0]));
 		hasKeyBinding |= HasKeyBinding(BandaiMicrophoneButtons, sizeof(BandaiMicrophoneButtons) / sizeof(BandaiMicrophoneButtons[0]));
+		hasKeyBinding |= HasKeyBinding(VirtualBoyButtons, sizeof(VirtualBoyButtons) / sizeof(VirtualBoyButtons[0]));
 		return hasKeyBinding;
 	}
 
@@ -412,7 +417,6 @@ enum class EmulatorShortcut
 	VsServiceButton2,
 
 	ToggleCheats,
-	ToggleAudio,
 	ToggleFastForward,
 	ToggleRewind,
 	ToggleKeyboardMode,
@@ -431,6 +435,10 @@ enum class EmulatorShortcut
 	InputBarcode,
 
 	TakeScreenshot,
+
+	ToggleRecordVideo,
+	ToggleRecordAudio,
+	ToggleRecordMovie,
 
 	IncreaseSpeed,
 	DecreaseSpeed,
@@ -459,6 +467,9 @@ enum class EmulatorShortcut
 	ToggleSprites,
 	ToggleBackground,
 	ToggleDebugInfo,
+	ToggleAudio,
+	IncreaseVolume,
+	DecreaseVolume,
 
 	LoadRandomGame,
 	SaveStateSlot1,

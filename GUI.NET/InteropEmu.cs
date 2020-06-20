@@ -478,14 +478,14 @@ namespace Mesen.GUI
 			return frameData;
 		}
 
-		[DllImport(DLLPath, EntryPoint = "DebugGetSprites")] private static extern void DebugGetSpritesWrapper(IntPtr frameBuffer);
-		public static byte[] DebugGetSprites()
+		[DllImport(DLLPath, EntryPoint = "DebugGetSprites")] private static extern void DebugGetSpritesWrapper(IntPtr frameBuffer, Int16 sourcePage);
+		public static byte[] DebugGetSprites(Int16 sourcePage = -1)
 		{
 			byte[] frameData = new byte[64*128*4];
 
 			GCHandle hFrameData = GCHandle.Alloc(frameData, GCHandleType.Pinned);
 			try {
-				InteropEmu.DebugGetSpritesWrapper(hFrameData.AddrOfPinnedObject());
+				InteropEmu.DebugGetSpritesWrapper(hFrameData.AddrOfPinnedObject(), sourcePage);
 			} finally {
 				hFrameData.Free();
 			}
@@ -503,6 +503,11 @@ namespace Mesen.GUI
 				InteropEmu.DebugGetPaletteWrapper(hFrameData.AddrOfPinnedObject());
 			} finally {
 				hFrameData.Free();
+			}
+
+			for(int i = 4; i < 4*8; i += 4) {
+				//Override color 0 in each palette with the background color
+				frameData[i] = frameData[0];
 			}
 
 			return frameData;
@@ -535,82 +540,30 @@ namespace Mesen.GUI
 			return buffer;
 		}
 
-		[DllImport(DLLPath, EntryPoint = "DebugGetProfilerData")] private static extern void DebugGetProfilerDataWrapper(IntPtr profilerData, ProfilerDataType dataType);
-		public static UInt64[] DebugGetProfilerData(ProfilerDataType dataType)
+		[DllImport(DLLPath, EntryPoint = "DebugGetProfilerData")] private static extern void GetProfilerDataWrapper([In, Out]ProfiledFunction[] profilerData, ref UInt32 functionCount);
+		public static ProfiledFunction[] DebugGetProfilerData()
 		{
-			UInt64[] profileData = new UInt64[InteropEmu.DebugGetMemorySize(DebugMemoryType.PrgRom) + 2];
+			ProfiledFunction[] profilerData = new ProfiledFunction[100000];
+			UInt32 functionCount = 0;
 
-			GCHandle hProfilerData = GCHandle.Alloc(profileData, GCHandleType.Pinned);
-			try {
-				InteropEmu.DebugGetProfilerDataWrapper(hProfilerData.AddrOfPinnedObject(), dataType);
-			} finally {
-				hProfilerData.Free();
-			}
+			InteropEmu.GetProfilerDataWrapper(profilerData, ref functionCount);
+			Array.Resize(ref profilerData, (int)functionCount);
 
-			return profileData;
+			return profilerData;
 		}
 
-		public static Int32[] DebugGetMemoryAccessCounts(DebugMemoryType type, MemoryOperationType operationType)
+		public static void DebugGetMemoryAccessCounts(DebugMemoryType type, ref AddressCounters[] counters)
 		{
 			int size = InteropEmu.DebugGetMemorySize(type);
-			return InteropEmu.DebugGetMemoryAccessCounts(0, (uint)size, type, operationType);
+			Array.Resize(ref counters, size);
+			InteropEmu.DebugGetMemoryAccessCountsWrapper(0, (uint)size, type, counters);
 		}
 
-		public static UInt64[] DebugGetMemoryAccessStamps(DebugMemoryType type, MemoryOperationType operationType)
+		[DllImport(DLLPath, EntryPoint = "DebugGetMemoryAccessCounts")] private static extern void DebugGetMemoryAccessCountsWrapper(UInt32 offset, UInt32 length, DebugMemoryType type, [In,Out]AddressCounters[] counts);
+		public static AddressCounters[] DebugGetMemoryAccessCounts(UInt32 offset, UInt32 length, DebugMemoryType type)
 		{
-			int size = InteropEmu.DebugGetMemorySize(type);
-			return InteropEmu.DebugGetMemoryAccessStamps(0, (uint)size, type, operationType);
-		}
-
-		[DllImport(DLLPath, EntryPoint = "DebugGetUninitMemoryReads")] private static extern void DebugGetUninitMemoryReadsWrapper(DebugMemoryType type, IntPtr counts);
-		public static Int32[] DebugGetUninitMemoryReads(DebugMemoryType type)
-		{
-			int size = InteropEmu.DebugGetMemorySize(type);
-			if(type == DebugMemoryType.InternalRam) {
-				size = 0x2000;
-			}
-
-			Int32[] counts = new Int32[size];
-
-			if(size > 0) {
-				GCHandle hCounts = GCHandle.Alloc(counts, GCHandleType.Pinned);
-				try {
-					InteropEmu.DebugGetUninitMemoryReadsWrapper(type, hCounts.AddrOfPinnedObject());
-				} finally {
-					hCounts.Free();
-				}
-			}
-
-			return counts;
-		}
-
-		[DllImport(DLLPath, EntryPoint = "DebugGetMemoryAccessStamps")] private static extern void DebugGetMemoryAccessStampsWrapper(UInt32 offset, UInt32 length, DebugMemoryType type, MemoryOperationType operationType, IntPtr stamps);
-		public static UInt64[] DebugGetMemoryAccessStamps(UInt32 offset, UInt32 length, DebugMemoryType type, MemoryOperationType operationType)
-		{
-			UInt64[] stamps = new UInt64[length];
-
-			GCHandle hStamps = GCHandle.Alloc(stamps, GCHandleType.Pinned);
-			try {
-				InteropEmu.DebugGetMemoryAccessStampsWrapper(offset, length, type, operationType, hStamps.AddrOfPinnedObject());
-			} finally {
-				hStamps.Free();
-			}
-
-			return stamps;
-		}
-
-		[DllImport(DLLPath, EntryPoint = "DebugGetMemoryAccessCounts")] private static extern void DebugGetMemoryAccessCountsWrapper(UInt32 offset, UInt32 length, DebugMemoryType type, MemoryOperationType operationType, IntPtr counts);
-		public static Int32[] DebugGetMemoryAccessCounts(UInt32 offset, UInt32 length, DebugMemoryType type, MemoryOperationType operationType)
-		{
-			Int32[] counts = new Int32[length];
-
-			GCHandle hResult = GCHandle.Alloc(counts, GCHandleType.Pinned);
-			try {
-				InteropEmu.DebugGetMemoryAccessCountsWrapper(offset, length, type, operationType, hResult.AddrOfPinnedObject());
-			} finally {
-				hResult.Free();
-			}
-
+			AddressCounters[] counts = new AddressCounters[length];
+			InteropEmu.DebugGetMemoryAccessCountsWrapper(offset, length, type, counts);
 			return counts;
 		}
 		
@@ -998,6 +951,7 @@ namespace Mesen.GUI
 			BeforeEmulationStop = 19,
 			VsDualSystemStarted = 20,
 			VsDualSystemStopped = 21,
+			GameInitCompleted = 22
 		}
 
 		public enum ControllerType
@@ -1010,6 +964,8 @@ namespace Mesen.GUI
 			PowerPad = 5,
 			SnesMouse = 6,
 			SuborMouse = 7,
+			VsZapper = 8,
+			VbController = 9,
 		}
 
 		public enum ExpansionPortDevice
@@ -1118,6 +1074,9 @@ namespace Mesen.GUI
 
 			[MarshalAs(UnmanagedType.ByValArray, SizeConst = 3)]
 			public UInt32[] BandaiMicrophoneButtons;
+
+			[MarshalAs(UnmanagedType.ByValArray, SizeConst = 14)]
+			public UInt32[] VirtualBoyButtons;
 		}
 
 		public enum StereoFilter
@@ -1254,6 +1213,10 @@ namespace Mesen.GUI
 		PpuRegisterRead,
 		MapperRegisterWrite,
 		MapperRegisterRead,
+		ApuRegisterWrite,
+		ApuRegisterRead,
+		ControlRegisterWrite,
+		ControlRegisterRead,
 		Nmi,
 		Irq,
 		SpriteZeroHit,
@@ -1656,6 +1619,8 @@ namespace Mesen.GUI
 
 		PauseOnMovieEnd = 0x0100,
 
+		EnablePpuOamRowCorruption = 0x0200,
+
 		AllowBackgroundInput = 0x0400,
 		ReduceSoundInBackground = 0x0800,
 		MuteSoundInBackground = 0x1000,
@@ -1778,6 +1743,9 @@ namespace Mesen.GUI
 		[MarshalAs(UnmanagedType.I1)]
 		public bool IsChrRam;
 
+		[MarshalAs(UnmanagedType.I1)]
+		public bool HasBusConflicts;
+
 		public UInt16 MapperId;
 		public UInt32 FilePrgOffset;
 
@@ -1802,6 +1770,7 @@ namespace Mesen.GUI
 		public UInt32 PrgCrc32;
 		public RomFormat Format;
 		public bool IsChrRam;
+		public bool HasBusConflicts;
 		public UInt16 MapperId;
 		public UInt32 FilePrgOffset;
 		public string Sha1;
@@ -1813,6 +1782,7 @@ namespace Mesen.GUI
 			this.PrgCrc32 = romInfo.PrgCrc32;
 			this.Format = romInfo.Format;
 			this.IsChrRam = romInfo.IsChrRam;
+			this.HasBusConflicts = romInfo.HasBusConflicts;
 			this.MapperId = romInfo.MapperId;
 			this.FilePrgOffset = romInfo.FilePrgOffset;
 			this.Sha1 = Encoding.UTF8.GetString(romInfo.Sha1);
@@ -1932,7 +1902,6 @@ namespace Mesen.GUI
 		VsServiceButton2,
 		
 		ToggleCheats,
-		ToggleAudio,
 		ToggleFastForward,
 		ToggleRewind,
 		ToggleKeyboardMode,
@@ -1951,6 +1920,10 @@ namespace Mesen.GUI
 		InputBarcode,
 
 		TakeScreenshot,
+		
+		ToggleRecordVideo,
+		ToggleRecordAudio,
+		ToggleRecordMovie,
 
 		IncreaseSpeed,
 		DecreaseSpeed,
@@ -1979,6 +1952,9 @@ namespace Mesen.GUI
 		ToggleSprites,
 		ToggleBackground,
 		ToggleDebugInfo,
+		ToggleAudio,
+		IncreaseVolume,
+		DecreaseVolume,
 
 		LoadRandomGame,
 		SaveStateSlot1,
@@ -2148,6 +2124,29 @@ namespace Mesen.GUI
 		}
 	}
 
+	public struct ProfiledFunction
+	{
+		public UInt64 ExclusiveCycles;
+		public UInt64 InclusiveCycles;
+		public UInt64 CallCount;
+		public UInt64 MinCycles;
+		public UInt64 MaxCycles;
+		public AddressTypeInfo Address;
+	}
+
+	[StructLayout(LayoutKind.Sequential)]
+	public struct AddressCounters
+	{
+		public UInt32 Address;
+		public UInt32 ReadCount;
+		public UInt64 ReadStamp;
+		public byte UninitRead;
+		public UInt32 WriteCount;
+		public UInt64 WriteStamp;
+		public UInt32 ExecCount;
+		public UInt64 ExecStamp;
+	}
+
 	public enum RecordMovieFrom
 	{
 		StartWithoutSaveData,
@@ -2199,6 +2198,10 @@ namespace Mesen.GUI
 		public UInt32 BreakpointColor;
 		public UInt32 MapperRegisterReadColor;
 		public UInt32 MapperRegisterWriteColor;
+		public UInt32 ApuRegisterReadColor;
+		public UInt32 ApuRegisterWriteColor;
+		public UInt32 ControlRegisterReadColor;
+		public UInt32 ControlRegisterWriteColor;
 
 		[MarshalAs(UnmanagedType.ByValArray, SizeConst = 8)]
 		public UInt32[] PpuRegisterReadColors;
@@ -2208,6 +2211,10 @@ namespace Mesen.GUI
 
 		[MarshalAs(UnmanagedType.I1)] public bool ShowMapperRegisterWrites;
 		[MarshalAs(UnmanagedType.I1)] public bool ShowMapperRegisterReads;
+		[MarshalAs(UnmanagedType.I1)] public bool ShowApuRegisterWrites;
+		[MarshalAs(UnmanagedType.I1)] public bool ShowApuRegisterReads;
+		[MarshalAs(UnmanagedType.I1)] public bool ShowControlRegisterWrites;
+		[MarshalAs(UnmanagedType.I1)] public bool ShowControlRegisterReads;
 
 		[MarshalAs(UnmanagedType.ByValArray, SizeConst = 8)]
 		public byte[] ShowPpuRegisterWrites;
@@ -2306,6 +2313,7 @@ namespace Mesen.GUI
 		None = 0,
 		ZMBV = 1,
 		CSCD = 2,
+		GIF = 3,
 	}
 
 	public enum ScaleFilterType

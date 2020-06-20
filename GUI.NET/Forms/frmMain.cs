@@ -38,6 +38,7 @@ namespace Mesen.GUI.Forms
 		private string _movieToRecord = null;
 		private List<string> _luaScriptsToLoad = new List<string>();
 		private bool _loadLastSessionRequested = false;
+		private bool _openDebuggerRequested = false;
 
 		private Image _pauseButton = Resources.Pause;
 		private Image _playButton = Resources.Play;
@@ -119,6 +120,8 @@ namespace Mesen.GUI.Forms
 
 			if(switches.Contains("/loadlastsession")) {
 				_loadLastSessionRequested = true;
+			} else if(switches.Contains("/debugger")) {
+				_openDebuggerRequested = true;
 			}
 
 			Regex recordMovieCommand = new Regex("/recordmovie=([^\"]+)");
@@ -666,7 +669,7 @@ namespace Mesen.GUI.Forms
 		private void _notifListener_OnNotification(InteropEmu.NotificationEventArgs e)
 		{
 			switch(e.NotificationType) {
-				case InteropEmu.ConsoleNotificationType.GameLoaded:
+				case InteropEmu.ConsoleNotificationType.GameInitCompleted:
 					VideoInfo.ApplyOverscanConfig();
 					_currentGame = InteropEmu.GetRomInfo().GetRomName();
 					InteropEmu.SetNesModel(ConfigManager.Config.Region);
@@ -681,8 +684,17 @@ namespace Mesen.GUI.Forms
 						}));
 					}
 
+					if(_openDebuggerRequested) {
+						InteropEmu.DebugPpuStep(1);
+						_openDebuggerRequested = false;
+					}
+
 					this.StartEmuThread();
 					this.BeginInvoke((MethodInvoker)(() => {
+						if(DebugWindowManager.HasOpenedWindow) {
+							DebugWorkspaceManager.GetWorkspace();
+							DebugWorkspaceManager.AutoLoadDbgFiles(true);
+						}
 						ctrlRecentGames.Visible = false;
 						UpdateViewerSize();
 						ProcessPostLoadCommandSwitches();
@@ -937,7 +949,6 @@ namespace Mesen.GUI.Forms
 				case EmulatorShortcut.Exit: this.Close(); break;
 
 				case EmulatorShortcut.ToggleCheats: ToggleCheats(); break;
-				case EmulatorShortcut.ToggleAudio: ToggleAudio(); break;
 				case EmulatorShortcut.ToggleFps: ToggleFps(); break;
 				case EmulatorShortcut.ToggleBackground: ToggleBackground(); break;
 				case EmulatorShortcut.ToggleSprites: ToggleSprites(); break;
@@ -949,6 +960,10 @@ namespace Mesen.GUI.Forms
 				case EmulatorShortcut.ToggleDebugInfo: ToggleDebugInfo(); break;
 				case EmulatorShortcut.MaxSpeed: ToggleMaxSpeed(); break;
 				case EmulatorShortcut.ToggleFullscreen: ToggleFullscreen(); restoreFullscreen = false; break;
+				
+				case EmulatorShortcut.ToggleAudio: ToggleAudio(); break;
+				case EmulatorShortcut.IncreaseVolume: IncreaseVolume(); break;
+				case EmulatorShortcut.DecreaseVolume: DecreaseVolume(); break;
 
 				case EmulatorShortcut.OpenFile: OpenFile(); break;
 				case EmulatorShortcut.IncreaseSpeed: InteropEmu.IncreaseEmulationSpeed(); break;
@@ -971,6 +986,40 @@ namespace Mesen.GUI.Forms
 				case EmulatorShortcut.InputBarcode:
 					using(frmInputBarcode frm = new frmInputBarcode()) {
 						frm.ShowDialog(this, this);
+					}
+					break;
+
+				case EmulatorShortcut.ToggleRecordVideo:
+					if(InteropEmu.AviIsRecording()) {
+						InteropEmu.AviStop();
+					} else {
+						string filename = GetOutputFilename(ConfigManager.AviFolder, ConfigManager.Config.AviRecordInfo.Codec == VideoCodec.GIF ? ".gif" : ".avi");
+						InteropEmu.AviRecord(filename, ConfigManager.Config.AviRecordInfo.Codec, ConfigManager.Config.AviRecordInfo.CompressionLevel);
+					}
+					break;
+				
+				case EmulatorShortcut.ToggleRecordAudio:
+					if(InteropEmu.WaveIsRecording()) {
+						InteropEmu.WaveStop();
+					} else {
+						string filename = GetOutputFilename(ConfigManager.WaveFolder, ".wav");
+						InteropEmu.WaveRecord(filename);
+					}
+					break;
+				
+				case EmulatorShortcut.ToggleRecordMovie:
+					if(!InteropEmu.MoviePlaying() && !InteropEmu.IsConnected()) {
+						if(InteropEmu.MovieRecording()) {
+							InteropEmu.MovieStop();
+						} else {
+							RecordMovieOptions options = new RecordMovieOptions(
+								GetOutputFilename(ConfigManager.MovieFolder, ".mmo"),
+								ConfigManager.Config.MovieRecordInfo.Author,
+								ConfigManager.Config.MovieRecordInfo.Description,
+								ConfigManager.Config.MovieRecordInfo.RecordFrom
+							);
+							InteropEmu.MovieRecord(ref options);
+						}
 					}
 					break;
 
@@ -1029,6 +1078,19 @@ namespace Mesen.GUI.Forms
 			}
 		}
 
+		private string GetOutputFilename(string folder, string ext)
+		{
+			DateTime now = DateTime.Now;
+			string baseName = InteropEmu.GetRomInfo().GetRomName();
+			string dateTime = " " + now.ToShortDateString() + " " + now.ToLongTimeString();
+			string filename = baseName + dateTime + ext;
+			
+			//Replace any illegal chars with _
+			filename = string.Join("_", filename.Split(Path.GetInvalidFileNameChars()));
+
+			return Path.Combine(folder, filename);
+		}
+
 		private void ToggleFullscreen()
 		{
 			SetFullscreenState(!_fullscreenMode);
@@ -1052,6 +1114,20 @@ namespace Mesen.GUI.Forms
 		private void ToggleAudio()
 		{
 			ConfigManager.Config.AudioInfo.EnableAudio = !ConfigManager.Config.AudioInfo.EnableAudio;
+			AudioInfo.ApplyConfig();
+			ConfigManager.ApplyChanges();
+		}
+
+		private void IncreaseVolume()
+		{
+			ConfigManager.Config.AudioInfo.MasterVolume = (uint)Math.Min(100, (int)ConfigManager.Config.AudioInfo.MasterVolume + 5);
+			AudioInfo.ApplyConfig();
+			ConfigManager.ApplyChanges();
+		}
+
+		private void DecreaseVolume()
+		{
+			ConfigManager.Config.AudioInfo.MasterVolume = (uint)Math.Max(0, (int)ConfigManager.Config.AudioInfo.MasterVolume - 5);
 			AudioInfo.ApplyConfig();
 			ConfigManager.ApplyChanges();
 		}
@@ -1133,6 +1209,7 @@ namespace Mesen.GUI.Forms
 					this.BeginInvoke((MethodInvoker)(() => this.UpdateMenus()));
 				} else {
 					bool running = _emuThread != null;
+					bool runAheadEnabled = ConfigManager.Config.EmulationInfo.RunAheadFrames > 0;
 
 					panelInfo.Visible = !running;
 
@@ -1251,11 +1328,10 @@ namespace Mesen.GUI.Forms
 					mnuInstallHdPack.Enabled = running;
 					mnuHdPackEditor.Enabled = !netPlay && running;
 
-					mnuNetPlay.Enabled = !InteropEmu.IsNsf();
-					if(running && InteropEmu.IsNsf()) {
-						mnuPowerCycle.Enabled = false;
-						mnuMovies.Enabled = mnuPlayMovie.Enabled = mnuStopMovie.Enabled = mnuRecordMovie.Enabled = false;
-					}
+					mnuNetPlay.Enabled = !InteropEmu.IsNsf() && !runAheadEnabled;
+
+					bool enableMovies = (!running || !InteropEmu.IsNsf()) && !runAheadEnabled;
+					mnuMovies.Enabled = mnuPlayMovie.Enabled = mnuStopMovie.Enabled = mnuRecordMovie.Enabled = enableMovies;
 
 					mnuRegionAuto.Checked = ConfigManager.Config.Region == NesModel.Auto;
 					mnuRegionNtsc.Checked = ConfigManager.Config.Region == NesModel.NTSC;

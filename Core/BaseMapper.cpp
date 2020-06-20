@@ -581,6 +581,10 @@ void BaseMapper::Initialize(RomData &romData)
 		case BusConflictType::No: _hasBusConflicts = false; break;
 	}	
 
+	if(_hasBusConflicts) {
+		MessageManager::Log("[iNes] Bus conflicts enabled");
+	}
+
 	_saveRam = new uint8_t[_saveRamSize];
 	_workRam = new uint8_t[_workRamSize];
 
@@ -728,7 +732,9 @@ shared_ptr<BaseControlDevice> BaseMapper::GetMapperControlDevice()
 
 RomInfo BaseMapper::GetRomInfo()
 {
-	return _romInfo;
+	RomInfo romInfo = _romInfo;
+	romInfo.BusConflicts = _hasBusConflicts ? BusConflictType::Yes : BusConflictType::No;
+	return romInfo;
 }
 
 uint32_t BaseMapper::GetMapperDipSwitchCount()
@@ -973,7 +979,7 @@ void BaseMapper::SetMemoryValue(DebugMemoryType memoryType, uint32_t address, ui
 void BaseMapper::GetAbsoluteAddressAndType(uint32_t relativeAddr, AddressTypeInfo* info)
 {
 	if(relativeAddr < 0x2000) {
-		info->Address = relativeAddr;
+		info->Address = relativeAddr & 0x7FF;
 		info->Type = AddressType::InternalRam;
 	} else {
 		uint8_t *prgAddr = _prgPages[relativeAddr >> 8] + (uint8_t)relativeAddr;

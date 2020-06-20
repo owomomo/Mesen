@@ -71,7 +71,6 @@ namespace Mesen.GUI.Debugger
 
 			this.UpdateWorkspace();
 			this.AutoLoadCdlFiles();
-			DebugWorkspaceManager.AutoLoadDbgFiles(true);
 
 			if(!Program.IsMono) {
 				this.mnuSplitView.Checked = ConfigManager.Config.DebugInfo.SplitView;
@@ -338,15 +337,15 @@ namespace Mesen.GUI.Debugger
 			if(ConfigManager.Config.DebugInfo.BreakOnDebuggerFocus && !InteropEmu.DebugIsExecutionStopped()) {
 				InteropEmu.DebugStep(1, BreakSource.BreakOnFocus);
 			}
+
+			//Refresh debugger in case memory has been changed by the memory tools, etc
+			UpdateDebugger(false, false);
 		}
 
-		private void ctrlProfiler_OnFunctionSelected(object sender, EventArgs e)
+		private void ctrlProfiler_OnFunctionSelected(object relativeAddress, EventArgs e)
 		{
-			int relativeAddress = InteropEmu.DebugGetRelativeAddress((UInt32)sender, AddressType.PrgRom);
-			if(relativeAddress >= 0) {
-				BringToFront();
-				LastCodeWindow.ScrollToLineNumber(relativeAddress);
-			}
+			BringToFront();
+			LastCodeWindow.ScrollToLineNumber((int)relativeAddress);
 		}
 
 		private void mnuFile_DropDownOpening(object sender, EventArgs e)
@@ -451,19 +450,24 @@ namespace Mesen.GUI.Debugger
 					BreakpointType bpType = (BreakpointType)(byte)((param >> 8) & 0x0F);
 					UInt16 bpAddress = (UInt16)(param >> 16);
 
-					ReadOnlyCollection<Breakpoint> breakpoints = BreakpointManager.Breakpoints;
+					int regularBpCount = BreakpointManager.Breakpoints.Count;
+					List<Breakpoint> breakpoints = BreakpointManager.GetAllBreakpoints();
 					if(breakpointId >= 0 && breakpointId < breakpoints.Count) {
 						Breakpoint bp = breakpoints[breakpointId];
-						if(bpType != BreakpointType.Global) {
-							message += ": " + ResourceHelper.GetEnumText(bpType) + " ($" + bpAddress.ToString("X4") + ":$" + bpValue.ToString("X2") + ")";
-						}
-						if(!string.IsNullOrWhiteSpace(bp.Condition)) {
-							string cond = bp.Condition.Trim();
-							if(cond.Length > 27) {
-								message += Environment.NewLine + cond.Substring(0, 24) + "...";
-							} else {
-								message += Environment.NewLine + cond;
+						if(breakpointId < regularBpCount) {
+							if(bpType != BreakpointType.Global) {
+								message += ": " + ResourceHelper.GetEnumText(bpType) + " ($" + bpAddress.ToString("X4") + ":$" + bpValue.ToString("X2") + ")";
 							}
+							if(!string.IsNullOrWhiteSpace(bp.Condition)) {
+								string cond = bp.Condition.Trim();
+								if(cond.Length > 27) {
+									message += Environment.NewLine + cond.Substring(0, 24) + "...";
+								} else {
+									message += Environment.NewLine + cond;
+								}
+							}
+						} else {
+							message = "Assert failed: " + bp.Condition.Substring(2, bp.Condition.Length - 3);
 						}
 					}
 				} else if(source == BreakSource.BreakOnUninitMemoryRead) {
@@ -1724,6 +1728,7 @@ namespace Mesen.GUI.Debugger
 		private void mnuBreakOptions_DropDownOpening(object sender, EventArgs e)
 		{
 			this.mnuBreakOnDecayedOamRead.Enabled = ConfigManager.Config.EmulationInfo.EnableOamDecay;
+			this.mnuBreakOnBusConflict.Enabled = InteropEmu.GetRomInfo().HasBusConflicts;
 
 			bool isNsf = InteropEmu.IsNsf();
 			mnuBreakOnInit.Visible = isNsf;

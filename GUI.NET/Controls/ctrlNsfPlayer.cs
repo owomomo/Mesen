@@ -22,6 +22,7 @@ namespace Mesen.GUI.Controls
 		private float _xFactor = 1;
 		private float _yFactor = 1;
 		private bool _isNsf = false;
+		private int _selectedTrack = 0;
 
 		public ctrlNsfPlayer()
 		{
@@ -161,10 +162,13 @@ namespace Mesen.GUI.Controls
 			NsfHeader header = InteropEmu.NsfGetHeader();
 			int currentTrack = InteropEmu.NsfGetCurrentTrack();
 
-			if(currentTrack != cboTrack.SelectedIndex) {
-				cboTrack.SelectedIndexChanged -= cboTrack_SelectedIndexChanged;
-				cboTrack.SelectedIndex = currentTrack;
-				cboTrack.SelectedIndexChanged += cboTrack_SelectedIndexChanged;
+			if(_selectedTrack != currentTrack) {
+				if(!_disableShortcutKeys) {
+					cboTrack.SelectedIndexChanged -= cboTrack_SelectedIndexChanged;
+					cboTrack.SelectedIndex = currentTrack;
+					cboTrack.SelectedIndexChanged += cboTrack_SelectedIndexChanged;
+				}
+				_selectedTrack = currentTrack;
 			}
 
 			TimeSpan time = TimeSpan.FromSeconds((double)elapsedFrames / ((header.Flags & 0x01) == 0x01 ? 50.006978 : 60.098812));
@@ -187,6 +191,8 @@ namespace Mesen.GUI.Controls
 			lblSlowMotion.Visible = lblSlowMotionIcon.Visible = InteropEmu.GetEmulationSpeed() < 100 && InteropEmu.GetEmulationSpeed() > 0 && !InteropEmu.CheckFlag(EmulationFlags.Turbo) && !rewinding;
 
 			lblTime.Text = label;
+
+			trkVolume.Value = (int)ConfigManager.Config.AudioInfo.MasterVolume;
 		}
 
 		private TimeSpan GetTrackLength(NsfHeader header, int track)
@@ -217,7 +223,6 @@ namespace Mesen.GUI.Controls
 			}
 
 			NsfHeader header = InteropEmu.NsfGetHeader();
-			int currentTrack = InteropEmu.NsfGetCurrentTrack();
 
 			string[] trackNames = header.GetTrackNames();
 
@@ -237,7 +242,10 @@ namespace Mesen.GUI.Controls
 				cboTrack.DataSource = _trackList;
 				cboTrack.DisplayMember = "Value";
 			}
-			cboTrack.SelectedIndex = currentTrack;
+			int currentTrack = InteropEmu.NsfGetCurrentTrack();
+			if(cboTrack.SelectedIndex != currentTrack) {
+				cboTrack.SelectedIndex = currentTrack;
+			}
 			lblTrackTotal.Text = "/ " + header.TotalSongs.ToString();
 		}
 
@@ -443,6 +451,7 @@ namespace Mesen.GUI.Controls
 		{
 			int currentTrack = InteropEmu.NsfGetCurrentTrack();
 			if(currentTrack != cboTrack.SelectedIndex) {
+				_selectedTrack = currentTrack;
 				InteropEmu.NsfSelectTrack((byte)cboTrack.SelectedIndex);
 			}
 		}

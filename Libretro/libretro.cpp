@@ -28,6 +28,7 @@
 #define DEVICE_EXCITINGBOXING     RETRO_DEVICE_SUBCLASS(RETRO_DEVICE_JOYPAD, 5)
 #define DEVICE_KONAMIHYPERSHOT    RETRO_DEVICE_SUBCLASS(RETRO_DEVICE_JOYPAD, 6)
 #define DEVICE_SNESGAMEPAD        RETRO_DEVICE_SUBCLASS(RETRO_DEVICE_JOYPAD, 7)
+#define DEVICE_VBGAMEPAD          RETRO_DEVICE_SUBCLASS(RETRO_DEVICE_JOYPAD, 8)
 #define DEVICE_ZAPPER             RETRO_DEVICE_SUBCLASS(RETRO_DEVICE_POINTER, 0)
 #define DEVICE_OEKAKIDS           RETRO_DEVICE_SUBCLASS(RETRO_DEVICE_POINTER, 1)
 #define DEVICE_BANDAIHYPERSHOT    RETRO_DEVICE_SUBCLASS(RETRO_DEVICE_POINTER, 2)
@@ -63,8 +64,10 @@ static constexpr const char* MesenPalette = "mesen_palette";
 static constexpr const char* MesenNoSpriteLimit = "mesen_nospritelimit";
 static constexpr const char* MesenOverclock = "mesen_overclock";
 static constexpr const char* MesenOverclockType = "mesen_overclock_type";
-static constexpr const char* MesenOverscanVertical = "mesen_overscan_vertical";
-static constexpr const char* MesenOverscanHorizontal = "mesen_overscan_horizontal";
+static constexpr const char* MesenOverscanLeft = "mesen_overscan_left";
+static constexpr const char* MesenOverscanRight = "mesen_overscan_right";
+static constexpr const char* MesenOverscanTop = "mesen_overscan_up";
+static constexpr const char* MesenOverscanBottom = "mesen_overscan_down";
 static constexpr const char* MesenAspectRatio = "mesen_aspect_ratio";
 static constexpr const char* MesenRegion = "mesen_region";
 static constexpr const char* MesenRamState = "mesen_ramstate";
@@ -155,13 +158,15 @@ extern "C" {
 			{ MesenOverclock, "Overclock; None|Low|Medium|High|Very High" },
 			{ MesenOverclockType, "Overclock Type; Before NMI (Recommended)|After NMI" },
 			{ MesenRegion, "Region; Auto|NTSC|PAL|Dendy" },
-			{ MesenOverscanVertical, "Vertical Overscan; None|8px|16px" },
-			{ MesenOverscanHorizontal, "Horizontal Overscan; None|8px|16px" },
+			{ MesenOverscanLeft, "Left Overscan; None|4px|8px|12px|16px" },
+			{ MesenOverscanRight, "Right Overscan; None|4px|8px|12px|16px" },
+			{ MesenOverscanTop, "Top Overscan; None|4px|8px|12px|16px" },
+			{ MesenOverscanBottom, "Bottom Overscan; None|4px|8px|12px|16px" },
 			{ MesenAspectRatio, "Aspect Ratio; Auto|No Stretching|NTSC|PAL|4:3|16:9" },
 			{ MesenControllerTurboSpeed, "Controller Turbo Speed; Fast|Very Fast|Disabled|Slow|Normal" },
 			{ MesenShiftButtonsClockwise, u8"Shift A/B/X/Y clockwise; disabled|enabled" },
 			{ MesenHdPacks, "Enable HD Packs; enabled|disabled" },
-			{ MesenNoSpriteLimit, "Remove sprite limit; enabled|disabled" },
+			{ MesenNoSpriteLimit, "Remove sprite limit; disabled|enabled" },
 			{ MesenFakeStereo, u8"Enable fake stereo effect; disabled|enabled" },
 			{ MesenMuteTriangleUltrasonic, u8"Reduce popping on Triangle channel; enabled|disabled" },
 			{ MesenReduceDmcPopping, u8"Reduce popping on DMC channel; enabled|disabled" },
@@ -183,6 +188,7 @@ extern "C" {
 			{ "Arkanoid", DEVICE_ARKANOID },
 			{ "SNES Controller", DEVICE_SNESGAMEPAD },
 			{ "SNES Mouse", DEVICE_SNESMOUSE },
+			{ "Virtual Boy Controller" ,DEVICE_VBGAMEPAD },
 			{ NULL, 0 },
 		};
 
@@ -194,6 +200,7 @@ extern "C" {
 			{ "Arkanoid", DEVICE_ARKANOID },
 			{ "SNES Controller", DEVICE_SNESGAMEPAD },
 			{ "SNES Mouse", DEVICE_SNESMOUSE },
+			{ "Virtual Boy Controller", DEVICE_VBGAMEPAD },
 			{ NULL, 0 },
 		};
 
@@ -276,6 +283,24 @@ extern "C" {
 			return true;
 		}
 		return false;
+	}
+
+	uint8_t readOverscanValue(const char* key)
+	{
+		retro_variable var = {};
+		if(readVariable(key, var)) {
+			string value = string(var.value);
+			if(value == "4px") {
+				return 4;
+			} else if(value == "8px") {
+				return 8;
+			} else if(value == "12px") {
+				return 12;
+			} else if(value == "16px") {
+				return 16;
+			}
+		}
+		return 0;
 	}
 
 	void set_flag(const char* flagName, uint64_t flagValue)
@@ -433,26 +458,12 @@ extern "C" {
 			}
 		}
 
-		int overscanHorizontal = 0;
-		int overscanVertical = 0;		
-		if(readVariable(MesenOverscanHorizontal, var)) {
-			string value = string(var.value);
-			if(value == "8px") {
-				overscanHorizontal = 8;
-			} else if(value == "16px") {
-				overscanHorizontal = 16;
-			}
-		}
-
-		if(readVariable(MesenOverscanVertical, var)) {
-			string value = string(var.value);
-			if(value == "8px") {
-				overscanVertical = 8;
-			} else if(value == "16px") {
-				overscanVertical = 16;
-			}
-		}
-		_console->GetSettings()->SetOverscanDimensions(overscanHorizontal, overscanHorizontal, overscanVertical, overscanVertical);
+		_console->GetSettings()->SetOverscanDimensions(
+			readOverscanValue(MesenOverscanLeft),
+			readOverscanValue(MesenOverscanRight),
+			readOverscanValue(MesenOverscanTop),
+			readOverscanValue(MesenOverscanBottom)
+		);
 
 		if(readVariable(MesenAspectRatio, var)) {
 			string value = string(var.value);
@@ -773,6 +784,7 @@ extern "C" {
 						case ControllerType::SnesMouse: device = DEVICE_SNESMOUSE; break;
 						case ControllerType::Zapper: device = DEVICE_ZAPPER; break;
 						case ControllerType::ArkanoidController: device = DEVICE_ARKANOID; break;
+						case ControllerType::VbController: device = DEVICE_VBGAMEPAD; break;
 						default: return;
 					}
 				} else if(port == 4) {
@@ -862,6 +874,21 @@ extern "C" {
 			} else if(device == DEVICE_PACHINKO) {
 				addDesc(port, RETRO_DEVICE_ID_JOYPAD_L, "Release Trigger");
 				addDesc(port, RETRO_DEVICE_ID_JOYPAD_R, "Press Trigger");
+			} else if(device == DEVICE_VBGAMEPAD) {
+				addDesc(port, RETRO_DEVICE_ID_JOYPAD_B, "Virtual Boy D-Pad 2 Down");
+				addDesc(port, RETRO_DEVICE_ID_JOYPAD_Y, "Virtual Boy D-Pad 2 Left");
+				addDesc(port, RETRO_DEVICE_ID_JOYPAD_SELECT, "Virtual Boy Select");
+				addDesc(port, RETRO_DEVICE_ID_JOYPAD_START, "Virtual Boy Start");
+				addDesc(port, RETRO_DEVICE_ID_JOYPAD_UP, "Virtual Boy D-Pad 1 Up");
+				addDesc(port, RETRO_DEVICE_ID_JOYPAD_DOWN, "Virtual Boy D-Pad 1 Down");
+				addDesc(port, RETRO_DEVICE_ID_JOYPAD_LEFT, "Virtual Boy D-Pad 1 Left");
+				addDesc(port, RETRO_DEVICE_ID_JOYPAD_RIGHT, "Virtual Boy D-Pad 1 Right");
+				addDesc(port, RETRO_DEVICE_ID_JOYPAD_A, "Virtual Boy D-Pad 2 Right");
+				addDesc(port, RETRO_DEVICE_ID_JOYPAD_X, "Virtual Boy D-Pad 2 Up");
+				addDesc(port, RETRO_DEVICE_ID_JOYPAD_L, "Virtual Boy L");
+				addDesc(port, RETRO_DEVICE_ID_JOYPAD_R, "Virtual Boy R");
+				addDesc(port, RETRO_DEVICE_ID_JOYPAD_L2, "Virtual Boy B");
+				addDesc(port, RETRO_DEVICE_ID_JOYPAD_R2, "Virtual Boy A");
 			}
 		};
 
@@ -899,6 +926,7 @@ extern "C" {
 						case DEVICE_ARKANOID: type = ControllerType::ArkanoidController; break;
 						case DEVICE_SNESGAMEPAD: type = ControllerType::SnesController; break;
 						case DEVICE_SNESMOUSE: type = ControllerType::SnesMouse; break;
+						case DEVICE_VBGAMEPAD: type = ControllerType::VbController; break;
 					}
 					_console->GetSettings()->SetControllerType(port, type);
 				} else {

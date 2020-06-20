@@ -50,9 +50,6 @@ namespace Mesen.GUI.Debugger
 				mnuBuiltInScripts
 			);
 
-			//Make sure labels are loaded
-			DebugWorkspaceManager.GetWorkspace();
-
 			DebugInfo config = ConfigManager.Config.DebugInfo;
 
 			_popupMenu = new AutocompleteMenu(txtScriptContent, this);
@@ -109,6 +106,7 @@ namespace Mesen.GUI.Debugger
 
 			RestoreLocation(config.ScriptWindowLocation, config.ScriptWindowSize);
 			mnuSaveBeforeRun.Checked = config.SaveScriptBeforeRun;
+			mnuAutoRestart.Checked = config.AutoRestartScript;
 
 			if(config.ScriptCodeWindowHeight >= ctrlSplit.Panel1MinSize) {
 				if(config.ScriptCodeWindowHeight == Int32.MaxValue) {
@@ -151,11 +149,27 @@ namespace Mesen.GUI.Debugger
 
 		private void _notifListener_OnNotification(InteropEmu.NotificationEventArgs e)
 		{
-			if(e.NotificationType == InteropEmu.ConsoleNotificationType.GameStopped) {
-				this._scriptId = -1;
-				this.BeginInvoke((Action)(() => {
-					lblScriptActive.Visible = false;
-				}));
+			switch(e.NotificationType) {
+				case InteropEmu.ConsoleNotificationType.EmulationStopped:
+					this._scriptId = -1;
+					break;
+
+				case InteropEmu.ConsoleNotificationType.GameStopped:
+					if(e.Parameter == IntPtr.Zero) {
+						this._scriptId = -1;
+					}
+					break;
+
+				case InteropEmu.ConsoleNotificationType.GameInitCompleted:
+					bool wasRunning = this._scriptId >= 0;
+					this._scriptId = -1;
+					this.BeginInvoke((Action)(() => {
+						lblScriptActive.Visible = false;
+						if(e.NotificationType == InteropEmu.ConsoleNotificationType.GameInitCompleted && wasRunning && mnuAutoRestart.Checked) {
+							RunScript();
+						}
+					}));
+					break;
 			}
 		}
 
@@ -185,6 +199,7 @@ namespace Mesen.GUI.Debugger
 			ConfigManager.Config.DebugInfo.ScriptFontStyle = txtScriptContent.OriginalFont.Style;
 			ConfigManager.Config.DebugInfo.ScriptFontSize = txtScriptContent.OriginalFont.Size;
 			ConfigManager.Config.DebugInfo.AutoLoadLastScript = mnuAutoLoadLastScript.Checked;
+			ConfigManager.Config.DebugInfo.AutoRestartScript = mnuAutoRestart.Checked;
 			ConfigManager.ApplyChanges();
 
 			base.OnClosing(e);
@@ -223,6 +238,7 @@ namespace Mesen.GUI.Debugger
 			this.Text = $"{name} - Script Window";
 			txtScriptContent.Text = ResourceManager.ReadZippedResource(name);
 			_originalText = txtScriptContent.Text;
+			_filePath = null;
 			_builtInScriptName = name;
 			txtScriptContent.ClearUndo();
 		}

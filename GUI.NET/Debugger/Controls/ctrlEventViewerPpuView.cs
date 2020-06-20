@@ -208,13 +208,21 @@ namespace Mesen.GUI.Debugger.Controls
 					0,
 					(byte)(cfg.EventViewerShowPpuRead2004 ? 1 : 0),
 					0,
-					(byte)(cfg.EventViewerShowPpuRead2007 ? 1 : 0),
-					0
+					0,
+					(byte)(cfg.EventViewerShowPpuRead2007 ? 1 : 0)
 				},
 				ShowMapperRegisterWrites = cfg.EventViewerShowMapperRegisterWrites,
 				ShowMapperRegisterReads = cfg.EventViewerShowMapperRegisterReads,
 				MapperRegisterWriteColor = (uint)cfg.EventViewerMapperRegisterWriteColor.Color.ToArgb(),
 				MapperRegisterReadColor = (uint)cfg.EventViewerMapperRegisterReadColor.Color.ToArgb(),
+				ShowApuRegisterWrites = cfg.EventViewerShowApuRegisterWrites,
+				ShowApuRegisterReads = cfg.EventViewerShowApuRegisterReads,
+				ApuRegisterWriteColor = (uint)cfg.EventViewerApuRegisterWriteColor.Color.ToArgb(),
+				ApuRegisterReadColor = (uint)cfg.EventViewerApuRegisterReadColor.Color.ToArgb(),
+				ShowControlRegisterWrites = cfg.EventViewerShowControlRegisterWrites,
+				ShowControlRegisterReads = cfg.EventViewerShowControlRegisterReads,
+				ControlRegisterWriteColor = (uint)cfg.EventViewerControlRegisterWriteColor.Color.ToArgb(),
+				ControlRegisterReadColor = (uint)cfg.EventViewerControlRegisterReadColor.Color.ToArgb(),
 				ShowNmi = cfg.EventViewerShowNmi,
 				ShowIrq = cfg.EventViewerShowIrq,
 				ShowDmcDmaReads = cfg.EventViewerShowDmcDmaReads,
@@ -244,8 +252,8 @@ namespace Mesen.GUI.Debugger.Controls
 					0,
 					(uint)cfg.EventViewerPpuRegisterRead2004Color.Color.ToArgb(),
 					0,
-					(uint)cfg.EventViewerPpuRegisterRead2007Color.Color.ToArgb(),
-					0
+					0,
+					(uint)cfg.EventViewerPpuRegisterRead2007Color.Color.ToArgb()
 				},
 			};
 		}

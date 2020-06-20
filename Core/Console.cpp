@@ -283,7 +283,7 @@ bool Console::Initialize(VirtualFile &romFile, VirtualFile &patchFile, bool forP
 		if(mapper) {
 			bool isDifferentGame = _romFilepath != (string)romFile || _patchFilename != (string)patchFile;
 			if(_mapper) {
-				if(isDifferentGame) {
+				if(isDifferentGame && _ppu->GetFrameCount() > 1) {
 					//Save current game state before loading another one
 					_saveStateManager->SaveRecentGame(GetRomInfo().RomName, _romFilepath, _patchFilename);
 				}
@@ -436,6 +436,12 @@ bool Console::Initialize(VirtualFile &romFile, VirtualFile &patchFile, bool forP
 					_notificationManager->SendNotification(ConsoleNotificationType::VsDualSystemStarted);
 				}
 			}
+
+			//Used by netplay to take save state after UpdateInputState() is called above, to ensure client+server are in sync
+			if(!_master) {
+				_notificationManager->SendNotification(ConsoleNotificationType::GameInitCompleted);
+			}
+
 			Resume();
 			return true;
 		} else {
@@ -623,7 +629,9 @@ void Console::ResetComponents(bool softReset)
 	_resetRunTimers = true;
 
 	//This notification MUST be sent before the UpdateInputState() below to allow MovieRecorder to grab the first frame's worth of inputs
-	_notificationManager->SendNotification(softReset ? ConsoleNotificationType::GameReset : ConsoleNotificationType::GameLoaded);
+	if(!_master) {
+		_notificationManager->SendNotification(softReset ? ConsoleNotificationType::GameReset : ConsoleNotificationType::GameLoaded);
+	}
 
 	if(softReset) {
 		shared_ptr<Debugger> debugger = _debugger;
@@ -761,7 +769,7 @@ void Console::Run()
 	try {
 		while(true) {
 			stringstream runAheadState;
-			bool useRunAhead = _settings->GetRunAheadFrames() > 0 && !_debugger && !_rewindManager->IsRewinding() && _settings->GetEmulationSpeed() > 0 && _settings->GetEmulationSpeed() <= 100;
+			bool useRunAhead = _settings->GetRunAheadFrames() > 0 && !_debugger && !IsNsf() && !_rewindManager->IsRewinding() && _settings->GetEmulationSpeed() > 0 && _settings->GetEmulationSpeed() <= 100;
 			if(useRunAhead) {
 				RunFrameWithRunAhead(runAheadState);
 			} else {
@@ -1049,6 +1057,15 @@ double Console::GetFrameDelay()
 	}
 
 	return frameDelay;
+}
+
+double Console::GetFps()
+{
+	if(_model == NesModel::NTSC) {
+		return _settings->CheckFlag(EmulationFlags::IntegerFpsMode) ? 60.0 : 60.098812;
+	} else {
+		return _settings->CheckFlag(EmulationFlags::IntegerFpsMode) ? 50.0 : 50.006978;
+	}
 }
 
 void Console::SaveState(ostream &saveStream)

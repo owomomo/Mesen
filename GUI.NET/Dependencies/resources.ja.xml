@@ -74,7 +74,7 @@
 			<Control ID="mnuNetPlaySpectator">観客</Control>
 			<Control ID="mnuFindServer">公開セーバリストを見る</Control>
 			<Control ID="mnuProfile">プロファイル設定</Control>
-			<Control ID="mnuMovies">動画</Control>
+			<Control ID="mnuMovies">映画</Control>
 			<Control ID="mnuPlayMovie">再生</Control>
 			<Control ID="mnuRecordMovie">録画</Control>
 			<Control ID="mnuStopMovie">停止</Control>
@@ -326,6 +326,7 @@
 			<Control ID="chkRandomizeCpuPpuAlignment">ランダムなCPU/PPUアラインメントでゲームを起動する</Control>
 			<Control ID="chkEnablePpu2006ScrollGlitch">$2006に書き込む時に発生するスクロールバグを再現する</Control>
 			<Control ID="chkEnablePpu2000ScrollGlitch">$2000・$2005・$2006に書き込む時に発生するスクロールバグを再現する</Control>
+			<Control ID="chkEnablePpuOamRowCorruption">OAM行のデータの汚染を再現する</Control>
 
 			<Control ID="lblRamPowerOnState">起動時のメモリの状態 : </Control>
 
@@ -549,7 +550,7 @@
 		</Form>
 		<Form ID="frmAbout" Title="Mesenとは">
 			<Control ID="labelProductName">Mesen</Control>
-			<Control ID="labelCopyright">© 2019 M. Bibaud (aka Sour)</Control>
+			<Control ID="labelCopyright">© 2020 M. Bibaud (aka Sour)</Control>
 			<Control ID="lblWebsite">サイト:</Control>
 			<Control ID="lblLink">www.mesen.ca</Control>
 			<Control ID="labelVersion">バージョン:</Control>
@@ -772,6 +773,7 @@
 		<Message ID="FilterMovie">動画 (*.mmo)|*.mmo|すべてのファイル (*.*)|*.*</Message>
 		<Message ID="FilterWave">WAVファイル (*.wav)|*.wav|すべてのファイル (*.*)|*.*</Message>
 		<Message ID="FilterAvi">AVIファイル (*.avi)|*.avi|すべてのファイル (*.*)|*.*</Message>
+		<Message ID="FilterGif">GIFファイル (*.gif)|*.gif|すべてのファイル (*.*)|*.*</Message>
 		<Message ID="FilterPalette">パレットファイル (*.pal)|*.pal|すべてのファイル (*.*)|*.*</Message>
 		<Message ID="FilterRom">対応するすべてのファイル (*.nes, *.zip, *.7z, *.fds, *.nsf, *.nsfe, *.unf, *.unif, *.studybox)|*.NES;*.ZIP;*.FDS;*.7z;*.NSF;*.NSFE;*.UNF;*.UNIF;*.STUDYBOX|ファミコンゲーム (*.nes, *.unf, *.unif)|*.NES;*.UNF;*.UNIF|ファミコンディスクシステムのゲーム (*.fds)|*.FDS|NSFファイル (*.nsf, *.nsfe)|*.NSF;*.NSFE|ZIPファイル (*.zip)|*.ZIP|7-Zipファイル (*.7z)|*.7z|すべてのファイル (*.*)|*.*</Message>
 		<Message ID="FilterRomIps">対応するすべてのファイル (*.nes, *.zip, *.7z, *.fds, *.nsf, *.nsfe, *.unf, *.unif, *.studybox, *.ips, *.bps, *.ups)|*.NES;*.ZIP;*.7z;*.IPS;*.BPS;*.UPS;*.FDS;*.NSF;*.NSFE;*.UNF;*.UNIF;*.STUDYBOX|ファミコンゲーム (*.nes, *.unf, *.unif)|*.NES;*.UNF;*.UNIF|ファミコンディスクシステムのゲーム (*.fds)|*.FDS|NSFファイル (*.nsf, *.nsfe)|*.NSF;*.NSFE|ZIPファイル (*.zip)|*.ZIP|7-Zipファイル (*.7z)|*.7z|パッチファイル (*.ips, *.bps, *.ups)|*.IPS;*.BPS;*.UPS|すべてのファイル (*.*)|*.*</Message>
@@ -913,6 +915,8 @@
 		<Message ID="EmulatorShortcutMappings_LoadState">選択中スロットからクイックロード</Message>
 		<Message ID="EmulatorShortcutMappings_ToggleCheats">チートコードを無効・有効にする</Message>
 		<Message ID="EmulatorShortcutMappings_ToggleAudio">音声を無効・有効にする</Message>
+		<Message ID="EmulatorShortcutMappings_IncreaseVolume">音量を上げる</Message>
+		<Message ID="EmulatorShortcutMappings_DecreaseVolume">音量を下げる</Message>
 		<Message ID="EmulatorShortcutMappings_RunSingleFrame">次のフレームを表す</Message>
 
 		<Message ID="EmulatorShortcutMappings_EjectDisk">FDS - ディスクを取り出す</Message>
@@ -933,6 +937,11 @@
 		<Message ID="EmulatorShortcutMappings_ToggleBackground">バックグラウンドレイヤー表示</Message>
 		<Message ID="EmulatorShortcutMappings_ToggleSprites">スプライトレイヤー表示</Message>
 		<Message ID="EmulatorShortcutMappings_ToggleKeyboardMode">キーボードモードを無効・有効にする</Message>
+
+		<Message ID="EmulatorShortcutMappings_ToggleRecordVideo">動画を録画する・録画を停止する</Message>
+		<Message ID="EmulatorShortcutMappings_ToggleRecordAudio">録音する・録音を停止する</Message>
+		<Message ID="EmulatorShortcutMappings_ToggleRecordMovie">映画を録画する・録画を停止する</Message>
+		
 		<Message ID="EmulatorShortcutMappings_MaxSpeed">最高速度を無効・有効にする</Message>
 		<Message ID="EmulatorShortcutMappings_LoadRandomGame">ランダムゲームを開く</Message>
 		<Message ID="EmulatorShortcutMappings_SaveStateSlot1">クイックセーブスロット１に保存する</Message>
@@ -993,6 +1002,7 @@
 			<Value ID="PowerPad">パワーパッド</Value>
 			<Value ID="SnesMouse">スーパーファミコマウス</Value>
 			<Value ID="SuborMouse">Suborマウス</Value>
+			<Value ID="VbController">バーチャルボーイコントローラ</Value>
 		</Enum>
 		<Enum ID="ExpansionPortDevice">
 			<Value ID="None">なし</Value>

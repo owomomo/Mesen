@@ -306,6 +306,15 @@ else
   LD = $(CXX)
 endif
 
+CONFLICTING_NAMES=std_vorbis std_vorbis_close stb_vorbis_open_memory stb_vorbis_get_info \
+  stb_vorbis_seek stb_vorbis_get_samples_short_interleaved stb_vorbis_seek_start \
+  stb_vorbis_get_file_offset
+ifeq ($(STATIC_LINKING),1)
+  PREFIX_DEFINES := $(foreach name,$(CONFLICTING_NAMES),-D$(name)=core_$(name))
+  CFLAGS   += $(PREFIX_DEFINES)
+  CXXFLAGS += $(PREFIX_DEFINES)
+endif
+
 include Makefile.common
 
 OBJECTS := $(SOURCES_C:.c=.o) $(SOURCES_CXX:.cpp=.o)
@@ -321,7 +330,6 @@ CXXFLAGS += -D LIBRETRO $(fpic) -std=c++14
 all: $(TARGET)
 
 $(TARGET): $(OBJECTS)
-	@echo "** BUILDING $(TARGET) FOR PLATFORM $(platform) **"
 ifeq ($(STATIC_LINKING), 1)
 ifneq (,$(findstring msvc,$(platform)))
 	$(LD) $(LINKOUT)$@ $(OBJECTS)
@@ -331,7 +339,6 @@ endif
 else
 	$(LD) $(fpic) $(SHARED) $(INCLUDES) $(LINKOUT)$@ $(OBJECTS) $(LDFLAGS)
 endif
-	@echo "** BUILD SUCCESSFUL! GG NO RE **"
 
 %.o: %.c
 	$(CC) $(CFLAGS) $(fpic) -c $< $(OBJOUT)$@
